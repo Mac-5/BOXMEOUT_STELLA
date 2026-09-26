@@ -1,7 +1,6 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import { httpLogger } from "./logger";
 import { auditLogMiddleware } from "./api/middleware/audit-log.middleware";
-import { walletAuthMiddleware } from "./api/middleware/walletAuth.middleware";
 import { errorHandlerMiddleware } from "./api/middleware/errorHandler.middleware";
 import { requestIdMiddleware } from "./api/middleware/requestId.middleware";
 import { metricsRouter, httpRequestDuration } from "./metrics";
@@ -10,6 +9,7 @@ import betRoutes from "./api/routes/bet.routes";
 import usersRoutes from "./api/routes/users.routes";
 import adminRoutes from "./api/routes/admin.routes";
 import authRoutes from "./api/routes/auth.routes";
+import oracleRoutes from "./api/routes/oracle.routes";
 import healthRoutes from "./api/routes/health.routes";
 import docsRoutes from "./api/routes/docs.routes";
 import oracleRoutes from "./api/routes/oracle.routes";
@@ -50,6 +50,12 @@ export function createApp(): express.Application {
   app.use("/api/bets", betRoutes);
   app.use("/api/users", usersRoutes);
   app.use("/api/admin", adminRoutes);
+  app.use("/api/oracle", oracleRoutes);
+
+  // #1220: Mount auth routes so clients can obtain wallet-auth challenges.
+  app.use("/api/auth", authRoutes);
+
+  // #1221: Mount oracle routes (protected by Bearer ORACLE_API_KEY in controller).
   app.use("/api/oracle", oracleRoutes);
 
   // B-37: Swagger UI — dev mode only (Issue #1095)
