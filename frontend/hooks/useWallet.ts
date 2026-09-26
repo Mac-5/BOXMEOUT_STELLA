@@ -1,14 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import { isConnected, getPublicKey, setAllowed, getNetwork } from "@stellar/freighter-api";
+import {
+  isConnected,
+  requestAccess,
+  getNetwork,
+  signTransaction as freighterSignTransaction,
+} from "@stellar/freighter-api";
 import { NETWORK_PASSPHRASE } from "@/lib/stellar";
 
-// Freighter v2 API returns objects with optional error fields rather than throwing.
-type ConnectedResult = { isConnected: boolean } | { error: string };
-type AllowedResult = { isAllowed: boolean } | { error: string };
-type PublicKeyResult = { publicKey: string } | { error: string };
-type NetworkResult = { network: string; networkPassphrase: string } | { error: string };
+// Freighter v6 resolves every call with its payload plus an optional `error`
+// field rather than throwing, so each result is checked for `error` first.
 
 const NETWORK_POLL_INTERVAL_MS = 3000;
 
@@ -54,8 +56,8 @@ export function __resetWalletStoreForTests(): void {
 
 async function refreshNetwork(): Promise<void> {
   try {
-    const netResult: NetworkResult = await getNetwork();
-    if ("error" in netResult) return;
+    const netResult = await getNetwork();
+    if (netResult.error) return;
     setState({ networkPassphrase: netResult.networkPassphrase });
   } catch {
     // Leave last-known network state in place; Freighter may be transiently unreachable.
@@ -78,44 +80,21 @@ export function useWallet(): UseWalletResult {
 
   const connect = useCallback(async () => {
     try {
-      const connResult: ConnectedResult = await isConnected();
-
-      if ("error" in connResult) {
+      // isConnected() only reports whether the extension is installed
+      const connResult = await isConnected();
+      if (connResult.error || !connResult.isConnected) {
         setState({ walletNotInstalled: true });
         return;
       }
 
-      if (!connResult.isConnected) {
-        const allowResult: AllowedResult = await setAllowed();
-        if ("error" in allowResult || !allowResult.isAllowed) {
-          setState({ walletNotInstalled: true });
-          return;
-        }
-      }
-
-      // Check which network the wallet is on
-      const netResult: NetworkResult = await getNetwork();
-      if ("error" in netResult) {
-        setWalletNotInstalled(true);
-        return;
-      }
-
-      const detectedNetwork = netResult.network.toUpperCase();
-      setNetworkName(detectedNetwork);
-
-      if (detectedNetwork !== EXPECTED_NETWORK.toUpperCase()) {
-        setIsWrongNetwork(true);
-      } else {
-        setIsWrongNetwork(false);
-      }
-
-      const pkResult: PublicKeyResult = await getPublicKey();
-      if ("error" in pkResult) {
+      // Prompts the user to allow this site on first use and returns the address
+      const accessResult = await requestAccess();
+      if (accessResult.error || !accessResult.address) {
         setState({ walletNotInstalled: true });
         return;
       }
 
-      setState({ address: pkResult.publicKey, connected: true, walletNotInstalled: false });
+      setState({ address: accessResult.address, connected: true, walletNotInstalled: false });
       await refreshNetwork();
     } catch {
       setState({ walletNotInstalled: true });
@@ -126,8 +105,17 @@ export function useWallet(): UseWalletResult {
     setState({ address: null, connected: false, networkPassphrase: null });
   }, []);
 
-  const signTransaction = useCallback(async (_xdr: string): Promise<string> => {
-    throw new Error("signTransaction not implemented");
+  const signTransaction = useCallback(async (xdr: string): Promise<string> => {
+    const { address } = state;
+    if (!address) throw new Error("Wallet not connected");
+
+    const result = await freighterSignTransaction(xdr, {
+      networkPassphrase: NETWORK_PASSPHRASE,
+      address,
+    });
+    if (result.error) throw new Error(result.error.message);
+
+    return result.signedTxXdr;
   }, []);
 
   // Wallets can switch network at any time from their own UI; poll while

@@ -54,7 +54,7 @@ export function useCreateMarket(): UseCreateMarketResult {
       const signedXdr = await signTransaction(xdr);
       const result = await submitTransaction(signedXdr);
       
-      const marketId = decodeScVal(result.returnValue) as string;
+      const marketId = (await decodeScVal(result.returnValue)) as string;
       return marketId;
     } catch (err) {
       const error = err instanceof Error ? err : new Error("Unknown error");

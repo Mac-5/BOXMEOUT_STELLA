@@ -1,14 +1,8 @@
-import {
-  Contract,
-  Operation,
-  SorobanRpc,
-  TransactionBuilder,
-  Timeout,
-  nativeToScVal,
-  addressToScVal,
-  scValToNative,
-  Transaction,
-} from "@stellar/stellar-sdk";
+import type { Transaction } from "@stellar/stellar-sdk";
+
+// The SDK is large; load it only when a transaction is actually built or decoded
+// so pages that just read the network constants below don't ship it.
+const loadSdk = (): Promise<typeof import("@stellar/stellar-sdk")> => import("@stellar/stellar-sdk");
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -49,6 +43,8 @@ export interface TransactionResult {
 export async function buildSorobanInvocation(
   params: SorobanInvokeParams
 ): Promise<string> {
+  const { Operation, SorobanRpc, TransactionBuilder, Timeout, nativeToScVal, addressToScVal } =
+    await loadSdk();
   const server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
     allowHttp: true,
   });
@@ -115,6 +111,7 @@ export async function buildSorobanInvocation(
  * Returns the TransactionResult containing txHash, ledger, and return value.
  */
 export async function submitTransaction(signedXdr: string): Promise<TransactionResult> {
+  const { SorobanRpc, TransactionBuilder } = await loadSdk();
   const server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
     allowHttp: true,
   });
@@ -162,10 +159,12 @@ export async function submitTransaction(signedXdr: string): Promise<TransactionR
  * Decodes a Soroban return value (ScVal) into a plain JavaScript value.
  * Handles i128, Bytes, Address, Vec, Map, and Option types.
  */
-export function decodeScVal(scVal: unknown): unknown {
+export async function decodeScVal(scVal: unknown): Promise<unknown> {
   if (!scVal) {
     return scVal;
   }
+
+  const { scValToNative } = await loadSdk();
 
   try {
     return scValToNative(scVal as any);

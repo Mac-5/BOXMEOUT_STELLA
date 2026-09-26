@@ -26,7 +26,8 @@ export function OutcomeChart({ poolA, poolB, labelA, labelB }: OutcomeChartProps
   const summary = `${labelA} ${pctA}%, ${labelB} ${pctB}%${hasPool ? "" : " (no bets placed yet)"}`;
 
   return (
-    <div className="w-full bg-gray-800 rounded-xl p-3" role="img" aria-label={`Outcome split: ${summary}`}>
+    <div className="w-full bg-gray-800 rounded-xl p-3">
+      <p className="sr-only">Outcome split: {summary}</p>
       <div className="w-full h-40" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24, top: 8, bottom: 8 }}>
@@ -48,7 +49,7 @@ export function OutcomeChart({ poolA, poolB, labelA, labelB }: OutcomeChartProps
         </ResponsiveContainer>
       </div>
       {/* Text labels so the split isn't communicated by color alone */}
-      <div className="flex justify-between text-xs text-gray-300 mt-1">
+      <div className="flex justify-between text-xs text-gray-300 mt-1" aria-hidden="true">
         <span className="min-w-0 truncate">{labelA}: {pctA}%</span>
         <span className="min-w-0 truncate text-right">{labelB}: {pctB}%</span>
       </div>

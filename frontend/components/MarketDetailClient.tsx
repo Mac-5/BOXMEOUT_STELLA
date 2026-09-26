@@ -1,16 +1,26 @@
 "use client";
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useMarket } from "@/hooks/useMarket";
 import { useMarketBets } from "@/hooks/useMarketBets";
 import { useMarketEvents } from "@/hooks/useMarketEvents";
 import { Market, Bet } from "@/lib/api";
 import { FighterCard } from "@/components/FighterCard";
 import { BetForm } from "@/components/BetForm";
-import { OutcomeChart } from "@/components/OutcomeChart";
-import { MarketOddsChart } from "@/components/MarketOddsChart";
 import { MarketStatusBadge } from "@/components/MarketStatusBadge";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { DisputeModal } from "@/components/DisputeModal";
+import { LoadingSkeleton } from "@/components/LoadingSkeleton";
+
+// recharts is only needed on this page; keep it out of the shared bundle
+const OutcomeChart = dynamic(() => import("@/components/OutcomeChart").then((m) => m.OutcomeChart), {
+  ssr: false,
+  loading: () => <LoadingSkeleton variant="chart" />,
+});
+const MarketOddsChart = dynamic(
+  () => import("@/components/MarketOddsChart").then((m) => m.MarketOddsChart),
+  { ssr: false, loading: () => <LoadingSkeleton variant="chart" /> }
+);
 
 const DISPUTE_WINDOW_SEC = 24 * 60 * 60; // 24 h
 

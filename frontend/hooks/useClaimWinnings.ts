@@ -71,7 +71,7 @@ export function useClaimWinnings(): UseClaimWinningsResult {
       const result = await submitTransaction(signedXdr);
 
       // Decode payout from return value
-      const payout = decodeScVal(result.returnValue) as bigint;
+      const payout = (await decodeScVal(result.returnValue)) as bigint;
 
       return {
         betId: bet_id,

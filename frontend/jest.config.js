@@ -11,7 +11,7 @@ const config = {
     "^@/(.*)$": "<rootDir>/$1",
   },
   // Fixture modules live beside the tests that use them and must not run as suites
-  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/.next/"],
+  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/.next/", "<rootDir>/e2e/"],
   testMatch: ["**/__tests__/**/*.test.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"],
 };
 
