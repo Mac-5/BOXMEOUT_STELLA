@@ -145,12 +145,12 @@ impl Treasury {
         daily_limit: i128,
     ) {
         if env.storage().persistent().has(&key_admin(&env)) {
-            panic!("already initialized");
+            return Err(ContractError::AlreadyInitialized);
         }
 
         // Validate fee_bps does not exceed 10% (1000 basis points)
         if fee_bps > 1000 {
-            panic!("fee_bps exceeds maximum of 1000 (10%)");
+            return Err(ContractError::Unauthorized);
         }
         if daily_limit <= 0 {
             panic!("daily_limit must be positive");
@@ -223,7 +223,7 @@ impl Treasury {
     /// Panics if:
     /// - `from_market` has not authorized the call.
     /// - `from_market` does not match the address registered for `market_id` in the factory.
-    pub fn deposit(env: Env, from_market: Address, market_id: Bytes, bettor: Address, amount: i128) {
+    pub fn deposit(env: Env, from_market: Address, market_id: Bytes, bettor: Address, amount: i128) -> Result<(), ContractError> {
         from_market.require_auth();
 
         let factory: Address = env
@@ -238,7 +238,7 @@ impl Treasury {
             soroban_sdk::vec![&env, market_id.to_val()],
         );
         if registered != from_market {
-            panic!("unauthorized: caller is not a registered market");
+            return Err(ContractError::MarketNotApproved);
         }
 
         let token_addr: Address = env
@@ -280,7 +280,7 @@ impl Treasury {
     ///
     /// Panics if:
     /// - The invoking contract address does not match the address registered for `market_id` in the factory.
-    pub fn deposit_fees(env: Env, market_id: Bytes, amount: i128) {
+    pub fn deposit_fees(env: Env, market_id: Bytes, amount: i128) -> Result<(), ContractError> {
         let factory: Address = env
             .storage()
             .persistent()
@@ -295,7 +295,7 @@ impl Treasury {
             soroban_sdk::vec![&env, market_id.to_val()],
         );
         if registered != caller {
-            panic!("unauthorized: caller is not a registered market");
+            return Err(ContractError::MarketNotApproved);
         }
 
         let balance: i128 = env
@@ -376,6 +376,7 @@ impl Treasury {
             (Symbol::new(&env, "DustSwept"),),
             (from_market, market_id, amount, env.ledger().timestamp()),
         );
+        Ok(())
     }
 
     /// Transfers collected fees from the treasury to a recipient address.
@@ -433,7 +434,7 @@ impl Treasury {
             .get(&key_balance(&env))
             .unwrap_or(0);
         if amount > balance {
-            panic!("amount exceeds balance");
+            return Err(ContractError::InsufficientBalance);
         }
         env.storage()
             .persistent()
@@ -475,6 +476,7 @@ impl Treasury {
             (Symbol::new(&env, "WinningsReleased"),),
             (from_market, market_id, recipient, amount),
         );
+        Ok(())
     }
 
     /// Drains all treasury funds to `recipient` in an emergency.
@@ -498,7 +500,7 @@ impl Treasury {
     /// Panics if:
     /// - `admin` has not authorized the call.
     /// - The protocol is not currently paused.
-    pub fn emergency_drain(env: Env, admin: Address, recipient: Address) -> i128 {
+    pub fn emergency_drain(env: Env, admin: Address, recipient: Address) -> Result<i128, ContractError> {
         admin.require_auth();
 
         let stored_admin: Address = env
@@ -507,7 +509,7 @@ impl Treasury {
             .get(&key_admin(&env))
             .expect("not initialized");
         if stored_admin != admin {
-            panic!("not admin");
+            return Err(ContractError::Unauthorized);
         }
 
         let factory: Address = env
@@ -521,7 +523,7 @@ impl Treasury {
             soroban_sdk::vec![&env],
         );
         if !config.paused {
-            panic!("protocol is not paused");
+            return Err(ContractError::Unauthorized);
         }
 
         let amount: i128 = env
@@ -549,7 +551,7 @@ impl Treasury {
 
         events::emit_emergency_drain(&env, token_addr, amount, admin);
 
-        amount
+        Ok(amount)
     }
 
     /// Returns the current treasury XLM balance.
