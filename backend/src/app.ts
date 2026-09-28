@@ -1,5 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { httpLogger } from "./logger";
+import { config } from "./config";
 import { auditLogMiddleware } from "./api/middleware/audit-log.middleware";
 import { errorHandlerMiddleware } from "./api/middleware/errorHandler.middleware";
 import { requestIdMiddleware } from "./api/middleware/requestId.middleware";
@@ -18,6 +20,15 @@ export function createApp(): express.Application {
 
   app.set("json replacer", (_key: string, value: unknown) =>
     typeof value === "bigint" ? value.toString() : value
+  );
+
+  // B-56: CORS — allow only the origins listed in CORS_ORIGINS env var.
+  // credentials: true lets the browser send cookies / Authorization headers.
+  app.use(
+    cors({
+      origin: config.CORS_ORIGINS,
+      credentials: true,
+    })
   );
 
   // B-59: attach / echo X-Request-Id before any logging or routing
